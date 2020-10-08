@@ -12,3 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutorials.
 
 ## **TIDYX 1**
+
+-   Use case\_when instead of nested ifelse, easier for people to understand your logic
+
+-   Convert characters to Factors when you want to specify the order for plotting
+
+-   Stringr::word() - extract words from a sentance

@@ -1,0 +1,97 @@
+---
+title: "TidyX_1_Treemap"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# I have already scraped 2017:2020 data using Super Netball Scraper in functions folder, data is saved in Data folder
+
+
+```{r Load packages and libraries}
+
+library(tidyverse)
+library(treemap)
+library(RColorBrewer)
+```
+
+
+
+```{r Read Data}
+ssn_data <- read.csv("Data/SSN_2017_2020.csv")
+```
+
+```{r View Data}
+glimpse(ssn_data)
+```
+
+```{r Manipulate Data}
+
+
+nnp_only <- ssn_data %>%
+  select(c(Season,                                                              # Select only player, team ,round and Nissan Net Points 
+           roundNumber,
+           player.displayName, 
+           team.squadNickname, 
+           player.netPoints, 
+           player.startingPositionCode,
+           player.currentPositionCode)) %>%
+  filter(Season == 2020) %>%
+  mutate(position = ifelse(player.startingPositionCode %in% "-",                # Fix starting position, removing any players who did not play any minutes (position is specified with a dash (-))
+                           player.currentPositionCode,
+                           player.startingPositionCode)) %>% 
+  filter(position != "-") %>%                                                   # Remove all player rows which have "-" as position - specificying they did not play
+  select(-c(player.currentPositionCode, player.startingPositionCode)) %>%       # Remove old position variables 
+  select(c(Season,                                                              # Rename variables
+           Round = roundNumber, 
+           PlayerName = player.displayName, 
+           Position = position, 
+           Team = team.squadNickname, 
+           NNP = player.netPoints ))
+
+# remove duplicates cases
+nnp_only <- distinct(nnp_only)
+
+# View Nissan Net points distributuion
+hist(nnp_only$NNP)
+
+# Create Nissan Net Points groups (Very Low, Low, Average, High, Very High) 
+nnp_only$NNP_group <- as.numeric(cut_number(nnp_only$NNP,5))
+
+# Create count of NNP_group per position
+nnp_position_count <- nnp_only %>%
+  count(Position, NNP_group) %>%
+  select(Position, NNP_group, n)
+
+# Rename nnp_group values
+nnp_position_count <- nnp_position_count %>%
+  mutate(NNP_group = case_when(NNP_group == 1 ~ "5. Very Low",
+                               NNP_group == 2 ~ "4. Low",
+                               NNP_group == 3 ~ "3. Average",
+                               NNP_group == 4 ~ "2. High",
+                               NNP_group == 5 ~ "1. Very High"))
+```
+
+
+```{r Tree Plot}
+
+png(filename = "NNP_by_position.png", width = 800, height = 500)
+    treemap(nnp_position_count,
+        index = c("NNP_group", "Position"),
+        vSize = "n",
+        type  = "index",                             # can change how the treemap is coloured based on different things
+        title = "Nissan Net Points by Position",
+        fontsize.title = 17,
+        fontsize.labels = c(12, 11),
+        fontcolor.labels = "black",
+        fontface.labels = c(2, 2),
+        overlap.labels = 0,
+        palette = "Spectral",
+        align.labels = list(
+          c("left",  "top"),     # define label for the box title
+          c("center", "center")))   # define label for the values within the boxes  
+```
+
