@@ -1,0 +1,14 @@
+---
+title: "TidyX"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# TidyX 
+
+This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutorials.
+
+## **TIDYX 1**
