@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# TidyX 
+# TidyX
 
 This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutorials.
 
@@ -18,3 +18,11 @@ This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutori
 -   Convert characters to Factors when you want to specify the order for plotting
 
 -   Stringr::word() - extract words from a sentance
+
+## **TIDYX 2**
+
+-   Load "plyr" always before "dplyr" - due to namespace collision (dplyr has better functions with same names)
+
+-   tidytext::stop\_words function removes words from sentiment analysis that done have any meaning (eg: an)
+
+-   Conflicted package can be used to specify which package you want to use like using double colon dplyr::

@@ -1,0 +1,82 @@
+---
+title: "2_Wordcloud"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readtext)
+library(tidyverse)
+library(tidytext)
+library(tm)
+library(stats)
+library(wordcloud)
+library(reshape2)
+
+```
+
+
+```{r Read text data in}
+text_data <- readtext("Data/books_combined.txt")
+```
+
+```{r Manipulaate text into a row per word}
+
+# move all single words to rows and clean
+text_unnest <- text_data %>%
+  unnest_tokens(word, text) %>%                      # unnest all sentances into rows for each word
+  mutate(word = tm::removeNumbers(word),            # change numbers into blank
+         word = tolower(word)) %>%                  # change all to lower case
+  filter(word != "")                                 # filter out all rows that are blank
+
+# filter out stop words
+words_to_remove <- stop_words                         # stop words are words without any real meaning (eg: an) 
+
+text_unnest <- text_unnest %>%
+  anti_join(words_to_remove, by = "word")
+
+# Count number of words
+word_count <- text_unnest %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 3) %>%                               # filter words that only present more than 3 times
+  mutate(word = reorder(word, n))
+
+# plot most common words
+ggplot(word_count, aes(x = word, y = n)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal()
+
+
+```
+
+```{r Sentiments}
+
+sentiments <- get_sentiments("bing")                             # use "bing" lexicon
+
+sentiment_df <- text_unnest %>%
+  left_join(sentiments) %>%                                     # join sentiments dataframe with text_unnest
+  mutate_if(is.character, ~replace(., is.na(.), "neutral")) %>% # make "na" sentiments neutral 
+  count(word, sentiment, sort = TRUE) %>%                       # count number of times word is present and sort desc
+  filter(n > 3) %>%
+  mutate(word = reorder(word, n))
+
+# plot sentiments analysis
+ggplot(sentiment_df, aes(word, n, fill = sentiment)) +
+  geom_col() +
+  coord_flip()
+
+```
+
+
+```{r Wordcloud}
+
+word_cloud <- sentiment_df %>%
+  reshape2::acast(word~sentiment, value.var = "n", fill =0)     # use acast to shape into wide format in correct format for wordcloud
+
+wordcloud <- word_cloud %>%                                    
+  comparison.cloud(colors = c('#F8766D','black', '#00BFC4'))   # run wordlcoud, sewt colors  
+  
+```
+
