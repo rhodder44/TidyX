@@ -1,0 +1,111 @@
+---
+title: "3_Radar_Plot"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages}
+library(tidyverse)
+```
+
+
+```{r Read Data}
+ssn_data <- read.csv("Data/SSN_2017_2020.csv")
+```
+
+```{r View Data}
+glimpse(ssn_data)
+```
+
+
+```{r Summarise players stas from 2020}
+
+# Sum each players 2020 season stats
+netball_main <- ssn_data %>%
+  filter(Season == 2020) %>%
+  filter(player.minutesPlayed != 0) %>%                              # Remove players who didn't play any minutes
+  select(Name                   = "player.displayName",
+         Minutes                = "player.minutesPlayed",
+         Rebounds               = "player.rebounds",           
+         Penalites              = "player.penalties",   
+         General_Play_Turnovers = "player.generalPlayTurnovers",
+         Possessions            = "player.possessions", 
+         Feeds                  = "player.feeds",         
+         Intercepts             = "player.intercepts") %>%
+  group_by(Name) %>%                                                 # Group by player to combine all instances of player
+  summarise_all(.funs = sum)
+
+
+# Convert stats to per minute basis, and only keep players who played above the median league minutes, as this will remove outlier players
+netball_main <- netball_main %>%
+  group_by(Name) %>%
+  summarise(MP = max(Minutes),
+            Rebounds_min               = Rebounds/MP,
+            Penalites_min              = Penalites/MP,
+            General_Play_Turnovers_min = General_Play_Turnovers/MP,
+            Possessions_min            = Possessions/MP,
+            Feeds_min                  = Feeds/MP,
+            Intercepts_min             = Intercepts/MP) %>%
+  filter(MP >= median(MP)) %>%                                           
+  select(-MP)
+
+
+# Create Z-Score function,  so different variables can be compared
+z_score <- function(x){
+  z = (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
+  return(z)
+}
+
+# Calculate Z-Scores
+netball_main <- netball_main %>%
+  mutate_at(vars(2:7), .funs = z_score)
+
+# Create T-Score function, so Z-Scores can be be scaled from 1-100
+t_score <- function(x){
+  t = (x * 10) + 50
+  t = ifelse(t > 100, 100, 
+             ifelse(t < 0, 0, t))
+}
+
+# Calculate T-Scores
+netball_main <- netball_main %>%
+  mutate_at(vars(2:7), .funs = t_score)
+```
+
+```{r Plot into Radar Plots}
+
+# Conver to long format for easier plotting
+netball_long <- netball_main %>%
+  rename('Rebounds\nPer min'    = Rebounds_min,
+         'Feeds\nPer min'       = Feeds_min,
+         'Turnovers\nPer min'   = General_Play_Turnovers_min,
+         'Intercepts\nPer min'  = Intercepts_min,
+         'Penalties\nPer min'   = Penalites_min,
+         'Possessions\nPer min' = Possessions_min) %>%
+  pivot_longer(cols = 2:7, names_to = "variable", values_to = "value")
+
+
+netball_long %>%
+  filter(Name == "L.Langman") %>%
+  ggplot(aes(x= variable, y = value, fill = variable)) +
+           geom_col(color = "white", width = 1) +
+           coord_polar(theta = "x") +
+           geom_hline(yintercept = seq(50, 50, by = 1), size = 1.2) +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 12),
+    legend.title = element_blank(),
+    legend.position = "none"
+  ) +
+  labs(title = "2020 L.Langman ",
+       x = "",
+       y = "")
+
+
+ggsave("Radar_plot.png")
+```
+
