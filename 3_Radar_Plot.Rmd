@@ -1,7 +1,9 @@
 ---
 title: "3_Radar_Plot"
-output: html_document
-editor_options: 
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
 ---
 
@@ -9,21 +11,22 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r Packages}
+```{r Packages, include = FALSE}
 library(tidyverse)
 ```
 
 
-```{r Read Data}
+```{r Read Data, echo = TRUE}
+# Read data
 ssn_data <- read.csv("Data/SSN_2017_2020.csv")
 ```
 
-```{r View Data}
+```{r View Data, include= FALSE}
 glimpse(ssn_data)
 ```
 
 
-```{r Summarise players stas from 2020}
+```{r Summarise players stas from 2020, echo = TRUE}
 
 # Sum each players 2020 season stats
 netball_main <- ssn_data %>%
