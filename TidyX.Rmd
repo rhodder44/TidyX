@@ -31,4 +31,10 @@ This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutori
 
 -   Conflicted package can be used to specify which package you want to use like using double colon dplyr::
 
--   When converting chacter to numeric, make sure it is character and not factor. If you convert factor to numeric it will output the factors levels
+-   When converting chacter to numeric, make sure it is character and not factor. If you convert factor to numeric it will output the factors level**IDYX 4**
+
+## **TIDYX 4**
+
+-   geom\_ridges to display density plots of all variables
+
+-   patchwork - can be used to combine multiple plots with easy syntax
