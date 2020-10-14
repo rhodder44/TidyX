@@ -1,0 +1,205 @@
+---
+title: "4_Patchwork_Report"
+output: html_document
+ditor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Packages, include = FALSE}
+library(tidyverse)
+library(patchwork)
+library(plotly)
+library(ggridges)
+```
+
+
+```{r Read Data, echo = TRUE, echo = F}
+# Read data
+ssn_data <- read.csv("Data/SSN_2017_2020.csv")
+```
+
+```{r View Data, include= FALSE, echo = F}
+glimpse(ssn_data)
+```
+
+
+```{r Manipulate for Variable distribution, message = FALSE}
+
+
+#######################################################
+# Standardize and pivot to wide format for first plot
+#######################################################
+
+
+# Sum each players 2020 season stats
+netball_main <- ssn_data %>%
+  filter(Season == 2020) %>%
+  filter(player.minutesPlayed != 0) %>%                              # Remove players who didn't play any minutes
+  select(Name                   = "player.displayName",
+         Minutes                = "player.minutesPlayed",
+         Rebounds               = "player.rebounds",           
+         Penalites              = "player.penalties",   
+         General_Play_Turnovers = "player.generalPlayTurnovers",
+         Possessions            = "player.possessions", 
+         Feeds                  = "player.feeds",         
+         Intercepts             = "player.intercepts") %>%
+  group_by(Name) %>%                                                 # Group by player to combine all instances of player
+  summarise_all(.funs = sum) 
+
+
+# Convert stats to per minute basis, and only keep players who played above the median league minutes, as this will remove outlier players
+netball_main <- netball_main %>%
+  group_by(Name) %>%
+  summarise(MP = max(Minutes),
+            Rebounds_min               = Rebounds/MP,
+            Penalites_min              = Penalites/MP,
+            General_Play_Turnovers_min = General_Play_Turnovers/MP,
+            Possessions_min            = Possessions/MP,
+            Feeds_min                  = Feeds/MP,
+            Intercepts_min             = Intercepts/MP) %>%
+  filter(MP >= median(MP)) %>%                                           
+  select(-MP)
+
+
+# Create Z-Score function,  so different variables can be compared
+z_score <- function(x){
+  z = (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
+  return(z)
+}
+
+# Calculate Z-Scores
+netball_standard <- netball_main %>%
+  mutate_at(vars(2:7), .funs = z_score)
+
+# Create T-Score function, so Z-Scores can be be scaled from 1-100
+t_score <- function(x){
+  t = (x * 10) + 50
+  t = ifelse(t > 100, 100, 
+             ifelse(t < 0, 0, t))
+}
+
+# Calculate T-Scores
+netball_standard <- netball_standard %>%
+  mutate_at(vars(2:7), .funs = t_score)
+
+
+# Conver to long format for easier plotting
+netball_long <- netball_standard %>%
+  rename('Rebounds\nPer min'    = Rebounds_min,
+         'Feeds\nPer min'       = Feeds_min,
+         'Turnovers\nPer min'   = General_Play_Turnovers_min,
+         'Intercepts\nPer min'  = Intercepts_min,
+         'Penalties\nPer min'   = Penalites_min,
+         'Possessions\nPer min' = Possessions_min) %>%
+  pivot_longer(cols = 2:7, names_to = "variable", values_to = "value")
+
+```
+
+```{r Manipulate for Defenders plots, echo = TRUE, message = FALSE}
+
+############################################
+# Inital manipulation for 2nd and 3rd plots
+############################################
+
+# Sum each players 2020 season stats
+netball_main2 <- ssn_data %>%
+  filter(Season == 2020) %>%
+    mutate(Position = ifelse(player.startingPositionCode %in% "-",                # Fix starting position, removing any players who did not play any minutes (position is specified with a dash (-))
+                           player.currentPositionCode,
+                           player.startingPositionCode)) %>% 
+  filter(Position != "-") %>%  
+  filter(Position == "GK" | Position == "GD" | Position == "WD") %>%
+  filter(player.minutesPlayed != 0) %>%                              # Remove players who didn't play any minutes
+  select(Name                   = "player.displayName",
+         Position,
+         Team                   = "team.squadNickname",
+         Minutes                = "player.minutesPlayed",
+         Rebounds               = "player.rebounds",           
+         Penalites              = "player.penalties",   
+         General_Play_Turnovers = "player.generalPlayTurnovers",
+         Possessions            = "player.possessions", 
+         Feeds                  = "player.feeds",         
+         Intercepts             = "player.intercepts") %>%
+  group_by(Name, Position, Team) %>%                                                 # Group by player to combine all instances of player
+  summarise_all(.funs = sum) 
+
+
+# Convert stats to per minute basis, and only keep players who played above the median league minutes, as this will remove outlier players
+netball_main2 <- netball_main2 %>%
+  group_by(Name, Position, Team) %>%
+  summarise(MP = max(Minutes),
+            Rebounds_min               = Rebounds/MP,
+            Penalites_min              = Penalites/MP,
+            Turnovers_min              = General_Play_Turnovers/MP,
+            Possessions_min            = Possessions/MP,
+            Feeds_min                  = Feeds/MP,
+            Intercepts_min             = Intercepts/MP) %>%
+  filter(MP >= median(MP)) %>%                                           
+  select(-MP)
+
+```
+
+```{r Geom_Density_Ridges Plot, message = FALSE}
+# Plotting of all key variables distriubtions
+variable_dist <- ggplot(netball_long, aes(x = value, y = variable, fill = variable)) +
+  geom_density_ridges() +
+  labs(title = "Key Netball Variables Distributions")
+
+
+```
+
+
+```{r Quadrant Plot, message = FALSE}
+# Quadrant Plot of Penalties and Intercepts, do players who are more aggressive for intercepts all have higher penalty counts?
+
+
+quadrant_plot <- netball_main2 %>%
+  mutate(Intercepts_per60 = Intercepts_min * 60,
+         Penalites_per60  = Penalites_min * 60) %>%
+  dplyr::filter(Intercepts_per60 <= 4 & Intercepts_per60 > 0 & Penalites_per60 <= 30) %>%
+  ggplot(aes(Intercepts_per60, Penalites_per60, label = Name, fill = Team)) +
+  geom_point() +
+  geom_hline(yintercept = 12, linetype = "dashed", size = 0.4) +
+  geom_vline(xintercept = 2,  linetype = "dashed", size = 0.4) +
+  labs(title = "Bottom Right quadrant is\n high intercepts \nand low penalties") +
+  theme(plot.title = element_text(size = 9))
+
+interactive_quadrant_plot <- highlight(ggplotly(quadrant_plot))
+
+```
+
+```{r Quadrant Plot2, message = FALSE}
+
+# Quadrant Plot of Possessions and Turnovers, which players have a good ratio of low turnovers to high possessisons
+
+quadrant_plot2 <- netball_main2 %>%
+  mutate(Turnovers_per60    = Turnovers_min * 60,
+         Possessions_per60  = Possessions_min * 60) %>%
+  dplyr::filter(Turnovers_per60 > 0 & Possessions_per60 <= 19) %>%
+  ggplot(aes(Possessions_per60, Turnovers_per60, label = Name, fill = Team)) +
+  geom_point() +
+  geom_hline(yintercept = 3, linetype = "dashed", size = 0.4) +
+  geom_vline(xintercept = 10,  linetype = "dashed", size = 0.4) +
+  labs(title = "Bottom Right quadrant is \nhigh possessions \nand low turnovers")+
+  theme(plot.title = element_text(size = 9))
+
+interactive_quadrant_plot2 <- highlight(ggplotly(quadrant_plot2))
+
+```
+
+
+```{r Combine plots together, , message = FALSE}
+
+# Static plots together using patchwork syntax
+variable_dist | (quadrant_plot / quadrant_plot2)
+
+
+# Interactive plots together using subplot() from plotly package
+subplot(interactive_quadrant_plot, interactive_quadrant_plot2, nrows = 2)
+```
+

@@ -35,6 +35,8 @@ This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutori
 
 ## **TIDYX 4**
 
--   geom\_ridges to display density plots of all variables
+-   geom\_density\_ridges to display density plots of all variables
 
 -   patchwork - can be used to combine multiple plots with easy syntax
+
+-   subplot() from plotly package to combine interactive plots
