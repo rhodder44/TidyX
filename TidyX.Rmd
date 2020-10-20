@@ -40,3 +40,11 @@ This is notes and code from **Patrick Ward** and **Ellis Hughes's** TidyX tutori
 -   patchwork - can be used to combine multiple plots with easy syntax
 
 -   subplot() from plotly package to combine interactive plots
+
+## **TIDYX 5**
+
+-   use ungroup() after a group\_by() argument if you want to continue other processing steps but not on the grouped data
+
+-   gganimate::transition\_reveal= plots then moves to the next frame and plots again, while retraining all previous frame plots
+
+-   gganimate::animate(): use end\_pause = 12 to pause the end of the animation before it starts again

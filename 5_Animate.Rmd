@@ -1,0 +1,95 @@
+---
+title: "5_Animate"
+output: html_document
+ditor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Packages, include = FALSE}
+library(tidyverse)
+library(gganimate)
+```
+
+
+```{r Read Data, echo = TRUE, echo = F}
+# Read data
+ssn_data <- read.csv("Data/SSN_2017_2020.csv")
+```
+
+
+```{r Create df: players with top 15 total nnp, message = FALSE}
+
+
+# Create dataset of players with top 15 total nnp for the year. Add in thier cumulative nnp over each round for plotting later on 
+
+netball_main <- ssn_data %>%
+  filter(Season == 2020) %>%
+  select(Round    = "roundNumber",
+         Name     = "player.displayName",
+         Position = "player.startingPositionCode",
+         Team     = "team.squadName",
+         Minutes  = "player.minutesPlayed",
+         NNP      = "player.netPoints") %>%
+  group_by(Name) %>%                                                 
+  mutate(cumsum_nnp = cumsum(NNP),                     # cumulative weekly nnp
+         total_nnp  = sum(NNP)) %>%                    # season total nnp
+  ungroup() %>%
+  mutate(nnp_rank = dense_rank(desc(total_nnp))) %>%   # ranking of nnp season total top to bottom 
+  dplyr::filter(nnp_rank <= 15) %>%                    # only keep top 15 season totals
+  arrange(total_nnp)
+
+```
+
+```{r Static horizontal bar plot, message = FALSE}
+
+# creaste color palette for teams
+
+team_cols <- c("Adelaide Thunderbirds" = "#F64C91", "Collingwood Magpies" = "black", "GIANTS Netball" = "#FF5A00", "Melbourne Vixens" = "#68C6B6", "NSW Swifts" = "#0084C8", "Queensland Firebirds" = "#FBB30F", "Sunshine Coast Lightning" = "#7C2796", "West Coast Fever" = "#009933")
+
+
+netball_main %>% 
+  dplyr::group_by(Name) %>%
+  slice(which.max(total_nnp)) %>%                           # keep only 1 row of each player so the plot doesnt add the season total together multiple times
+ggplot(aes(x = reorder(Name, total_nnp), y = total_nnp, fill = Team)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = team_cols) + 
+  labs(title = "Top 15 Nissan Net Points by Team",
+       x     = "Player",
+       y     = "Nissan Net Points")
+
+
+```
+
+
+```{r Animate Plot}
+
+animate_plot <- netball_main %>%
+  ggplot(aes(x = reorder(Name, cumsum_nnp), y = cumsum_nnp)) +
+  geom_col(aes(fill = cumsum_nnp), show.legend = FALSE) +
+  scale_fill_gradient(low = "blue", high = "green") +
+  coord_flip() +
+  labs(title    = 'SSN Top 15 Nissan Net Points',
+       subtitle = "Round: {frame_time}",                            # dynamic subtitle with changing round value
+       x        = "Player",
+       y        = "Nissan Net Points") +
+  transition_time(Round) +                                          # gganimate functioning
+  ease_aes('linear') +
+  theme(
+    axis.text.x   = element_text(face = "bold", size = 13),
+    axis.text.y   = element_text(face = "bold", size = 13),
+    plot.title    = element_text(face = "bold", size = 17),
+    plot.subtitle = element_text(face = "bold", size = 15), 
+  )
+
+animate(animate_plot, end_pause = 40)
+
+anim_save("animate_plot.gif", animate_plot)
+```
+
